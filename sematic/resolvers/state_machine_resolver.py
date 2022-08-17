@@ -27,7 +27,7 @@ class StateMachineResolver(Resolver, abc.ABC):
 
         future.resolved_kwargs = resolved_kwargs
 
-        self._resolution_will_start()
+        self._resolution_will_start(future)
 
         self._enqueue_future(future)
 
@@ -43,7 +43,7 @@ class StateMachineResolver(Resolver, abc.ABC):
 
             self._wait_for_scheduled_run()
 
-        self._resolution_did_succeed()
+        self._resolution_did_succeed(future)
 
         if future.state != FutureState.RESOLVED:
             raise RuntimeError("Unresolved Future after resolver call.")
@@ -97,28 +97,43 @@ class StateMachineResolver(Resolver, abc.ABC):
 
     # State machine lifecycle hooks
 
-    def _resolution_will_start(self) -> None:
+    def _resolution_will_start(self, root_future: AbstractFuture) -> None:
         """
         Callback allowing resolvers to implement custom actions.
 
         This is called when `resolve` has been called and
         before any future get scheduled for resolution.
+
+        Parameters
+        ----------
+        root_future:
+            This is the root future that is being resolved.
         """
         pass
 
-    def _resolution_did_succeed(self) -> None:
+    def _resolution_did_succeed(self, root_future: AbstractFuture) -> None:
         """
         Callback allowing resolvers to implement custom actions.
 
         This is called after all futures have succesfully resolved.
+
+        Parameters
+        ----------
+        root_future:
+            This is the root future that is being resolved.
         """
         pass
 
-    def _resolution_did_fail(self) -> None:
+    def _resolution_did_fail(self, root_future: AbstractFuture) -> None:
         """
         Callback allowing resolvers to implement custom actions.
 
         This is called after a future has failed and the exception is about to be raised.
+
+        Parameters
+        ----------
+        root_future:
+            This is the root future that is being resolved.
         """
         pass
 
@@ -203,6 +218,10 @@ class StateMachineResolver(Resolver, abc.ABC):
         in order to display in the UI.
         """
         self._fail_future_and_parents(future)
+        while future.parent_future is not None:
+            future = future.parent_future
+
+        self._resolution_did_fail(future)
         raise exception
 
     def _fail_future_and_parents(

@@ -84,6 +84,10 @@ def put_resolution_endpoint(user: Optional[User], resolution_id: str) -> flask.R
         validation_error = existing_resolution.check_update(resolution)
         if validation_error is not None:
             return jsonify_error(validation_error, HTTPStatus.BAD_REQUEST)
+    else:
+        validation_error = resolution.check_new_resolution()
+        if validation_error is not None:
+            return jsonify_error(validation_error, HTTPStatus.BAD_REQUEST)
 
     save_resolution(resolution)
 

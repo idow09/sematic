@@ -49,10 +49,24 @@ class ResolutionStatus(Enum):
     @classmethod
     def is_allowed_transition(
         cls,
-        from_status: Union["ResolutionStatus", str],
+        from_status: Optional[Union["ResolutionStatus", str]],
         to_status: Union["ResolutionStatus", str],
     ) -> bool:
-        if not isinstance(from_status, ResolutionStatus):
+        """Determine whether moving from one status to the other is allowed.
+
+        Parameters
+        ----------
+        from_status:
+            The status being moved from. If 'None', then the to_status must be a
+            valid initial status.
+        to_status:
+            The status being moved to.
+
+        Returns
+        -------
+        True if the new status can be transitioned to from the old one.
+        """
+        if from_status is not None and not isinstance(from_status, ResolutionStatus):
             from_status = ResolutionStatus[from_status]
         if not isinstance(to_status, ResolutionStatus):
             to_status = ResolutionStatus[to_status]
@@ -60,6 +74,9 @@ class ResolutionStatus(Enum):
 
 
 _ALLOWED_TRANSITIONS = {
+    # Local resolutions can start out as "running" because they don't need to
+    # get scheduled.
+    None: {ResolutionStatus.CREATED, ResolutionStatus.RUNNING, ResolutionStatus.FAILED},
     ResolutionStatus.CREATED: {ResolutionStatus.SCHEDULED, ResolutionStatus.FAILED},
     ResolutionStatus.SCHEDULED: {ResolutionStatus.RUNNING, ResolutionStatus.FAILED},
     ResolutionStatus.RUNNING: {ResolutionStatus.COMPLETE, ResolutionStatus.FAILED},
@@ -107,9 +124,11 @@ class Resolution(Base, JSONEncodableMixin):
         types.String(), nullable=False, info={ENUM_KEY: ResolutionStatus}
     )
     kind: ResolutionKind = Column(  # type: ignore
-        types.String(), nullable=False, info={ENUM_KEY: ResolutionStatus}
+        types.String(), nullable=False, info={ENUM_KEY: ResolutionKind}
     )
-    docker_image_uri: str = Column(types.String(), nullable=True, default=None)
+    docker_image_uri: Optional[str] = Column(
+        types.String(), nullable=True, default=None
+    )
     settings_env_vars: Dict[str, str] = Column(
         types.JSON, nullable=False, default=lambda: {}
     )
@@ -174,4 +193,12 @@ class Resolution(Base, JSONEncodableMixin):
                 f"Resolution {self.root_id} cannot be moved from the {self.status} "
                 f"state to the {other.status} state."
             )
+        return None
+
+    def check_new_resolution(self) -> Optional[str]:
+        if self.kind != ResolutionKind.LOCAL.value:
+            if self.docker_image_uri is None:
+                return "Remote resolutions require docker image URIs"
+        if not ResolutionStatus.is_allowed_transition(None, self.status):
+            return f"Resolution {self.root_id} can't start in state: {self.status}"
         return None

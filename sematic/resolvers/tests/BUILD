@@ -7,6 +7,7 @@ pytest_test(
         "//sematic/api/tests:fixtures",
         "//sematic/db/models:edge",
         "//sematic/db/tests:fixtures",
+        "//sematic/tests:fixtures",
         "//sematic/resolvers:local_resolver",
         "//sematic/types:init",
     ],

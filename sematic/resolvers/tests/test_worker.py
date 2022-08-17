@@ -15,7 +15,7 @@ from sematic.db.queries import get_root_graph
 from sematic.db.tests.fixtures import test_db  # noqa: F401
 from sematic.resolvers.cloud_resolver import CloudResolver
 from sematic.resolvers.worker import main
-from sematic.tests.fixtures import test_storage  # noqa: F401
+from sematic.tests.fixtures import test_storage, valid_client_version  # noqa: F401
 
 
 @func
@@ -37,6 +37,7 @@ def test_main(
     mock_requests,  # noqa: F811
     test_db,  # noqa: F811
     test_storage,  # noqa: F811
+    valid_client_version,  # noqa: F811
 ):
     # On the user's machine
     resolver = CloudResolver(detach=True)
@@ -68,6 +69,7 @@ def test_fail(
     mock_schedule_job: mock.MagicMock,
     mock_requests,  # noqa: F811
     test_storage,  # noqa: F811
+    valid_client_version,  # noqa: F811
 ):
     # On the user's machine
     resolver = CloudResolver(detach=True)

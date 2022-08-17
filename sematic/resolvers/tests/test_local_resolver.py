@@ -17,6 +17,7 @@ from sematic.db.models.factories import make_artifact
 from sematic.db.queries import get_root_graph
 from sematic.db.tests.fixtures import pg_mock, test_db  # noqa: F401
 from sematic.resolvers.local_resolver import LocalResolver
+from sematic.tests.fixtures import valid_client_version  # noqa: F401
 
 
 @func
@@ -37,7 +38,7 @@ def pipeline(a: float, b: float) -> float:
 
 
 @mock_no_auth
-def test_single_function(test_db, mock_requests):  # noqa: F811
+def test_single_function(test_db, mock_requests, valid_client_version):  # noqa: F811
     future = add(1, 2)
 
     result = future.set(name="AAA").resolve(LocalResolver())
@@ -87,7 +88,7 @@ def add_add_add(a: float, b: float) -> float:
 
 
 @mock_no_auth
-def test_add_add(test_db, mock_requests):  # noqa: F811
+def test_add_add(test_db, mock_requests, valid_client_version):  # noqa: F811
     future = add_add_add(1, 2)
 
     result = future.resolve(LocalResolver())
@@ -102,7 +103,7 @@ def test_add_add(test_db, mock_requests):  # noqa: F811
 
 
 @mock_no_auth
-def test_pipeline(test_db, mock_requests):  # noqa: F811
+def test_pipeline(test_db, mock_requests, valid_client_version):  # noqa: F811
     future = pipeline(3, 5)
 
     result = future.resolve(LocalResolver())
@@ -119,7 +120,7 @@ def test_pipeline(test_db, mock_requests):  # noqa: F811
 
 
 @mock_no_auth
-def test_failure(test_db, mock_requests):  # noqa: F811
+def test_failure(test_db, mock_requests, valid_client_version):  # noqa: F811
     class CustomException(Exception):
         pass
 
@@ -235,12 +236,12 @@ class DBStateMachineTestResolver(LocalResolver):
 
 
 @mock_no_auth
-def test_db_state_machine(test_db, mock_requests):  # noqa: F811
+def test_db_state_machine(test_db, mock_requests, valid_client_version):  # noqa: F811
     pipeline(1, 2).resolve(DBStateMachineTestResolver())
 
 
 @mock_no_auth
-def test_list_conversion(test_db, mock_requests):  # noqa: F811
+def test_list_conversion(test_db, mock_requests, valid_client_version):  # noqa: F811
     @func
     def alist(a: float, b: float) -> List[float]:
         return [add(a, b), add(a, b)]
@@ -249,7 +250,7 @@ def test_list_conversion(test_db, mock_requests):  # noqa: F811
 
 
 @mock_no_auth
-def test_exceptions(mock_requests):  # noqa: F811
+def test_exceptions(mock_requests, valid_client_version):  # noqa: F811
     @func
     def fail():
         raise Exception("FAIL!")

@@ -12,8 +12,10 @@ from sematic.config import get_config  # noqa: F401
 from sematic.db.models.artifact import Artifact
 from sematic.db.models.edge import Edge
 from sematic.db.models.factories import make_artifact, make_run_from_future
+from sematic.db.models.resolution import Resolution, ResolutionKind, ResolutionStatus
 from sematic.db.models.run import Run
 from sematic.resolvers.silent_resolver import SilentResolver
+from sematic.user_settings import get_all_user_settings
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +121,19 @@ class LocalResolver(SilentResolver):
 
         self._add_run(run)
         self._save_graph()
+        if run.parent_id is None:
+            api_client.save_resolution(
+                Resolution(
+                    root_id=run.id,
+                    status=ResolutionStatus.RUNNING,
+                    kind=ResolutionKind.LOCAL,
+                    docker_image_uri=None,
+                    settings_env_vars={
+                        name: str(value)
+                        for name, value in get_all_user_settings().items()
+                    },
+                )
+            )
 
     def _future_did_schedule(self, future: AbstractFuture) -> None:
         super()._future_did_schedule(future)
@@ -182,13 +197,23 @@ class LocalResolver(SilentResolver):
         root_future = self._futures[0]
         api_client.notify_pipeline_update(self._runs[root_future.id].calculator_path)
 
-    def _resolution_did_succeed(self) -> None:
-        super()._resolution_did_succeed()
+    def _resolution_did_succeed(self, root_future: AbstractFuture) -> None:
+        super()._resolution_did_succeed(root_future)
+        self._update_resolution_status(root_future.id, ResolutionStatus.COMPLETE)
         self._notify_pipeline_update()
 
-    def _resolution_did_fail(self) -> None:
-        super()._resolution_did_fail()
+    def _resolution_did_fail(self, root_future: AbstractFuture) -> None:
+        super()._resolution_did_fail(root_future)
+
+        # COMPLETE status is used for the resolution when the error came
+        # from inside user code, which is the case if we reach here.
+        self._update_resolution_status(root_future.id, ResolutionStatus.COMPLETE)
         self._notify_pipeline_update()
+
+    def _update_resolution_status(self, root_id: str, status: ResolutionStatus):
+        resolution = api_client.get_resolution(root_id)
+        resolution.status = status
+        api_client.save_resolution(resolution)
 
     def _get_run(self, run_id) -> Run:
         # Should refresh from DB for remote exec
