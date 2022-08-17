@@ -19,7 +19,7 @@ from sematic.db.models.user import User
 from sematic.db.queries import get_resolution, get_run, save_resolution
 
 
-@sematic_api.route("/api/v1/resolution/<resolution_id>", methods=["GET"])
+@sematic_api.route("/api/v1/resolutions/<resolution_id>", methods=["GET"])
 @authenticate
 def get_resolution_endpoint(user: Optional[User], resolution_id: str) -> flask.Response:
     try:
@@ -37,7 +37,8 @@ def get_resolution_endpoint(user: Optional[User], resolution_id: str) -> flask.R
     return flask.jsonify(payload)
 
 
-@sematic_api.route("/api/v1/resolution/<resolution_id>", methods=["PUT"])
+@sematic_api.route("/api/v1/resolutions/<resolution_id>", methods=["PUT"])
+@authenticate
 def put_resolution_endpoint(user: Optional[User], resolution_id: str) -> flask.Response:
     if (
         not flask.request
