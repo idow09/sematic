@@ -65,7 +65,7 @@ CREATE TABLE public.notes (
 CREATE TABLE public.resolutions (
     root_id text NOT NULL,
     status text NOT NULL,
-    is_detached boolean NOT NULL,
+    kind text NOT NULL,
     docker_image_uri text,
     settings_env_vars jsonb NOT NULL
 );
@@ -206,6 +206,14 @@ ALTER TABLE ONLY public.notes
 
 ALTER TABLE ONLY public.notes
     ADD CONSTRAINT notes_run_id_fkey FOREIGN KEY (run_id) REFERENCES public.runs(id);
+
+
+--
+-- Name: resolutions resolutions_root_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.resolutions
+    ADD CONSTRAINT resolutions_root_id_fkey FOREIGN KEY (root_id) REFERENCES public.runs(id);
 
 
 --
