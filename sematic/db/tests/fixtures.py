@@ -116,7 +116,7 @@ def make_resolution(**kwargs) -> Resolution:
     root_id = uuid.uuid4().hex
     run = Resolution(
         root_id=root_id,
-        status=ResolutionStatus.CREATED,
+        status=ResolutionStatus.SCHEDULED,
         kind=ResolutionKind.KUBERNETES,
         docker_image_uri="some.uri",
         settings_env_vars={"MY_SETTING": "MY_VALUE"},

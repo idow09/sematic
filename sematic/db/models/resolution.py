@@ -1,5 +1,4 @@
 # Standard Library
-import uuid
 from enum import Enum, unique
 from typing import Dict, Optional, Union
 
@@ -22,8 +21,6 @@ class ResolutionStatus(Enum):
 
     States
     ------
-    CREATED:
-        The Resolution is in the DB, but k8s has not been asked to execute it yet.
     SCHEDULED:
         K8s (or the local process, for non-detached) has been asked to execute the
         resolution, but the code has not started executing for it yet.
@@ -40,7 +37,6 @@ class ResolutionStatus(Enum):
         was canceled, so long as the cancellation was exited cleanly.
     """
 
-    CREATED = "CREATED"
     SCHEDULED = "SCHEDULED"
     RUNNING = "RUNNING"
     FAILED = "FAILED"
@@ -49,10 +45,23 @@ class ResolutionStatus(Enum):
     @classmethod
     def is_allowed_transition(
         cls,
-        from_status: Union["ResolutionStatus", str],
+        from_status: Optional[Union["ResolutionStatus", str]],
         to_status: Union["ResolutionStatus", str],
     ) -> bool:
-        if not isinstance(from_status, ResolutionStatus):
+        """Check whether it's valid to move from the from_status to the to_status
+
+        Parameters
+        ----------
+        from_status:
+            The status being moved from, or None if this is a new resolution.
+        to_status:
+            The status being moved to
+
+        Returns
+        -------
+        True if the transition is valid, False otherwise
+        """
+        if from_status is not None and not isinstance(from_status, ResolutionStatus):
             from_status = ResolutionStatus[from_status]
         if not isinstance(to_status, ResolutionStatus):
             to_status = ResolutionStatus[to_status]
@@ -60,12 +69,21 @@ class ResolutionStatus(Enum):
 
 
 _ALLOWED_TRANSITIONS = {
-    ResolutionStatus.CREATED: {ResolutionStatus.SCHEDULED, ResolutionStatus.FAILED},
+    # Local resolver can jump straight to RUNNING
+    None: {
+        ResolutionStatus.SCHEDULED,
+        ResolutionStatus.RUNNING,
+        ResolutionStatus.FAILED,
+    },
     ResolutionStatus.SCHEDULED: {ResolutionStatus.RUNNING, ResolutionStatus.FAILED},
     ResolutionStatus.RUNNING: {ResolutionStatus.COMPLETE, ResolutionStatus.FAILED},
     ResolutionStatus.COMPLETE: {},
     ResolutionStatus.FAILED: {},
 }
+
+
+class InvalidResolution(Exception):
+    pass
 
 
 @unique
@@ -101,7 +119,6 @@ class Resolution(Base, JSONEncodableMixin):
         types.String(),
         nullable=False,
         primary_key=True,
-        default=lambda: uuid.uuid4().hex,
     )
     status: ResolutionStatus = Column(  # type: ignore
         types.String(), nullable=False, info={ENUM_KEY: ResolutionStatus}
@@ -140,18 +157,17 @@ class Resolution(Base, JSONEncodableMixin):
         except Exception:
             raise ValueError("kind must be a ResolutionKind, got {}".format(value))
 
-    def check_update(self, other: "Resolution") -> Optional[str]:
-        """Confirm that a new resolution can be used to update the fields of another.
+    def update_with(self, other: "Resolution") -> None:
+        """Use the other resolution to update this one.
 
         Parameters
         ----------
         other:
             The new resolution that is meant to update this one
 
-        Returns
-        -------
-        None if the update is allowed, an error message with the validation
-        failure reason if the update is not allowed.
+        Raises
+        ------
+        InvalidResolution if the update is not valid.
         """
         mutable_fields = {"status"}
         for column in Resolution.__table__.columns:
@@ -161,17 +177,34 @@ class Resolution(Base, JSONEncodableMixin):
             original_value = getattr(self, column_key)
             new_value = getattr(other, column_key)
             if original_value != new_value:
-                return (
+                raise InvalidResolution(
                     f"Cannot update {column_key} of resolution {self.root_id} after "
                     f"it has been created. Original value: '{original_value}', "
                     f"new value: '{new_value}' (will not be used)"
                 )
 
-        if other.status == self.status:
-            return None
-        if not ResolutionStatus.is_allowed_transition(self.status, other.status):
-            return (
-                f"Resolution {self.root_id} cannot be moved from the {self.status} "
-                f"state to the {other.status} state."
+        if other.status != self.status:
+            if not ResolutionStatus.is_allowed_transition(self.status, other.status):
+                raise InvalidResolution(
+                    f"Resolution {self.root_id} cannot be moved from the {self.status} "
+                    f"state to the {other.status} state."
+                )
+
+        for field in mutable_fields:
+            setattr(self, field, getattr(other, field))
+
+    def validate_new(self):
+        """Confirm that the resolution is valid for a resolution that is just beginning.
+
+        Raises
+        ------
+        InvalidResolution if the resolution is not valid.
+        """
+        if self.kind != ResolutionKind.LOCAL.value and self.docker_image_uri is None:
+            raise InvalidResolution(
+                f"Non-local resolution {self.root_id} must have a docker URI"
             )
-        return None
+        if not ResolutionStatus.is_allowed_transition(None, self.status):
+            raise InvalidResolution(
+                f"New resolution {self.root_id} can't begin in the {self.status} state."
+            )

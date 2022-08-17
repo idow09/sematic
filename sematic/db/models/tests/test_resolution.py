@@ -4,13 +4,15 @@ import re
 import pytest
 
 # Sematic
-from sematic.db.models.resolution import Resolution, ResolutionKind, ResolutionStatus
+from sematic.db.models.resolution import (
+    InvalidResolution,
+    Resolution,
+    ResolutionKind,
+    ResolutionStatus,
+)
 
 
 def test_is_allowed_transition():
-    assert ResolutionStatus.is_allowed_transition(
-        ResolutionStatus.CREATED, ResolutionStatus.SCHEDULED
-    )
     assert ResolutionStatus.is_allowed_transition(
         ResolutionStatus.SCHEDULED, ResolutionStatus.RUNNING
     )
@@ -26,15 +28,6 @@ UPDATE_CASES = [
     (
         Resolution(
             root_id="abc123",
-            status=ResolutionStatus.CREATED,
-            kind=ResolutionKind.KUBERNETES,
-            docker_image_uri="my.docker.registry.io/image/tag",
-        ),
-        None,
-    ),
-    (
-        Resolution(
-            root_id="abc123",
             status=ResolutionStatus.SCHEDULED,
             kind=ResolutionKind.KUBERNETES,
             docker_image_uri="my.docker.registry.io/image/tag",
@@ -43,8 +36,17 @@ UPDATE_CASES = [
     ),
     (
         Resolution(
+            root_id="abc123",
+            status=ResolutionStatus.RUNNING,
+            kind=ResolutionKind.KUBERNETES,
+            docker_image_uri="my.docker.registry.io/image/tag",
+        ),
+        None,
+    ),
+    (
+        Resolution(
             root_id="zzz",
-            status=ResolutionStatus.CREATED,
+            status=ResolutionStatus.SCHEDULED,
             kind=ResolutionKind.KUBERNETES,
             docker_image_uri="my.docker.registry.io/image/tag",
         ),
@@ -57,13 +59,13 @@ UPDATE_CASES = [
             kind=ResolutionKind.KUBERNETES,
             docker_image_uri="my.docker.registry.io/image/tag",
         ),
-        r"Resolution abc123 cannot be moved from the CREATED state to the "
+        r"Resolution abc123 cannot be moved from the SCHEDULED state to the "
         r"COMPLETE state.",
     ),
     (
         Resolution(
             root_id="abc123",
-            status=ResolutionStatus.CREATED,
+            status=ResolutionStatus.SCHEDULED,
             kind=ResolutionKind.LOCAL,
             docker_image_uri="my.docker.registry.io/image/tag",
         ),
@@ -72,7 +74,7 @@ UPDATE_CASES = [
     (
         Resolution(
             root_id="abc123",
-            status=ResolutionStatus.CREATED,
+            status=ResolutionStatus.SCHEDULED,
             kind=ResolutionKind.KUBERNETES,
             docker_image_uri="my.docker.registry.io/changed/tag",
         ),
@@ -85,11 +87,15 @@ UPDATE_CASES = [
 def test_updates(update, expected_error):
     original = Resolution(
         root_id="abc123",
-        status=ResolutionStatus.CREATED,
+        status=ResolutionStatus.SCHEDULED,
         kind=ResolutionKind.KUBERNETES,
         docker_image_uri="my.docker.registry.io/image/tag",
     )
-    error = original.check_update(update)
+    try:
+        original.update_with(update)
+        error = None
+    except InvalidResolution as e:
+        error = str(e)
     if expected_error is None:
         assert error is None
     else:
