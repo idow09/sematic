@@ -1,3 +1,5 @@
+load("//sematic:wheel_version.bzl", "wheel_version_string")
+
 pytest_test(
     name = "test_calculator",
     srcs = ["test_calculator.py"],
@@ -32,6 +34,8 @@ pytest_test(
         "//sematic:api_client",
         "//sematic:config",
         "//sematic:versions",
+        "//sematic/db/models:factories",
+        "//sematic/tests:fixtures",
     ],
 )
 
@@ -52,6 +56,14 @@ pytest_test(
 )
 
 pytest_test(
+    name = "test_client",
+    srcs = ["test_client.py"],
+    deps = [
+        "//sematic:client",
+    ],
+)
+
+pytest_test(
     name = "test_user_settings",
     srcs = ["test_user_settings.py"],
     deps = [
@@ -60,10 +72,23 @@ pytest_test(
     ],
 )
 
+pytest_test(
+    name = "test_versions",
+    srcs = ["test_versions.py"],
+    deps = [
+        "//sematic:versions",
+    ],
+    data = [
+        "//:docs/changelog.md",
+    ],
+    env = {"BAZEL_WHEEL_VERSION": wheel_version_string},
+)
+
 sematic_py_lib(
     name = "fixtures",
     srcs = ["fixtures.py"],
     deps = [
+        "//sematic:api_client",
         "//sematic:storage",
     ],
 )
