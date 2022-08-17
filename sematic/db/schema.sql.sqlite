@@ -67,7 +67,9 @@ CREATE TABLE users (
 CREATE TABLE resolutions (
     root_id TEXT NOT NULL,
     status TEXT NOT NULL,
-    is_detached INTEGER NOT NULL,
+    is_detached BOOLEAN NOT NULL,
+    docker_image_uri TEXT,
+    settings_env_vars JSONB NOT NULL,
 
     PRIMARY KEY (root_id)
 );

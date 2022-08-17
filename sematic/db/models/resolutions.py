@@ -1,4 +1,5 @@
 # Standard Library
+from typing import Dict
 import uuid
 from enum import Enum, unique
 
@@ -72,6 +73,8 @@ class Resolution(Base, JSONEncodableMixin):
         types.String(), nullable=False, info={ENUM_KEY: ResolutionStatus}
     )
     is_detached: bool = Column(types.Boolean)
+    docker_image_uri: str = Column(types.String(), nullable=True, default=None)
+    settings_env_vars: Dict[str, str] = Column(types.JSON, nullable=False, default= lambda: {})
 
     @validates("status")
     def validate_status(self, key, value) -> str:
