@@ -78,13 +78,13 @@ class CloudResolver(LocalResolver):
         # Once when resolution is starting on the client, and once when
         # it is starting on the worker. If the resolution already exists,
         # no need to create a new one.
-        if is_running:
+        if is_running and not detached:
             self._update_resolution_status(root_future_id, ResolutionStatus.RUNNING)
             return
         api_client.save_resolution(
             Resolution(
                 root_id=root_future_id,
-                status=ResolutionStatus.SCHEDULED,
+                status=ResolutionStatus.SCHEDULED if detached else ResolutionStatus.RUNNING,
                 kind=ResolutionKind.KUBERNETES if detached else ResolutionKind.LOCAL,
                 docker_image_uri=_get_image(),
                 settings_env_vars={
