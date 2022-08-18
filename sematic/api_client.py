@@ -132,6 +132,13 @@ def get_resolution(root_id: str) -> Resolution:
     return Resolution.from_json_encodable(response["content"])
 
 
+def resolution_exists(root_id: str) -> bool:
+    """Determine whether a resolution with the given id exists"""
+    response = _get("/resolutions/{}/exists".format(root_id))
+
+    return response["content"]
+
+
 def notify_pipeline_update(calculator_path: str):
     _notify_event("pipeline", "update", {"calculator_path": calculator_path})
 

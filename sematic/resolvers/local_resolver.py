@@ -113,15 +113,15 @@ class LocalResolver(SilentResolver):
     def _resolution_will_start(self, future: AbstractFuture):
         self._populate_run_and_artifacts(future)
         self._save_graph()
-        self._create_resolution(future.id, detached=False, is_running=True)
+        if not api_client.resolution_exists(future.id):
+            self._create_resolution(future.id, detached=False)
+        self._update_resolution_status(future.id, ResolutionStatus.RUNNING)
 
-    def _create_resolution(self, root_future_id, detached, is_running):
+    def _create_resolution(self, root_future_id, detached):
         api_client.save_resolution(
             Resolution(
                 root_id=root_future_id,
-                status=ResolutionStatus.RUNNING
-                if is_running
-                else ResolutionStatus.SCHEDULED,
+                status=ResolutionStatus.SCHEDULED,
                 kind=ResolutionKind.LOCAL,
                 docker_image_uri=None,
                 settings_env_vars={

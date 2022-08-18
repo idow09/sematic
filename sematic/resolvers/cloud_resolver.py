@@ -73,18 +73,11 @@ class CloudResolver(LocalResolver):
         self._artifacts = {artifact.id: artifact for artifact in artifacts}
         self._edges = {make_edge_key(edge): edge for edge in edges}
 
-    def _create_resolution(self, root_future_id, detached, is_running):
-        # create_resolution will be hit twice for a detached cloud run.
-        # Once when resolution is starting on the client, and once when
-        # it is starting on the worker. If the resolution already exists,
-        # no need to create a new one.
-        if is_running and not detached:
-            self._update_resolution_status(root_future_id, ResolutionStatus.RUNNING)
-            return
+    def _create_resolution(self, root_future_id, detached):
         api_client.save_resolution(
             Resolution(
                 root_id=root_future_id,
-                status=ResolutionStatus.SCHEDULED if detached else ResolutionStatus.RUNNING,
+                status=ResolutionStatus.SCHEDULED,
                 kind=ResolutionKind.KUBERNETES if detached else ResolutionKind.LOCAL,
                 docker_image_uri=_get_image(),
                 settings_env_vars={
@@ -96,7 +89,7 @@ class CloudResolver(LocalResolver):
     def _detach_resolution(self, future: AbstractFuture) -> str:
         run = self._populate_run_and_artifacts(future)
         self._save_graph()
-        self._create_resolution(future.id, detached=True, is_running=False)
+        self._create_resolution(future.id, detached=True)
         run.root_id = future.id
 
         self._save_graph()
