@@ -7,6 +7,7 @@ import logging
 import typing
 
 # Sematic
+from sematic.abstract_calculator import CalculatorError
 from sematic.abstract_future import AbstractFuture, FutureState
 from sematic.resolver import Resolver
 
@@ -19,36 +20,47 @@ class StateMachineResolver(Resolver, abc.ABC):
         self._detach = detach
 
     def resolve(self, future: AbstractFuture) -> typing.Any:
-        resolved_kwargs = self._get_resolved_kwargs(future)
-        if not len(resolved_kwargs) == len(future.kwargs):
-            raise ValueError(
-                "All input arguments of your root function should be concrete."
-            )
+        try:
+            resolved_kwargs = self._get_resolved_kwargs(future)
+            if not len(resolved_kwargs) == len(future.kwargs):
+                raise ValueError(
+                    "All input arguments of your root function should be concrete."
+                )
 
-        future.resolved_kwargs = resolved_kwargs
+            future.resolved_kwargs = resolved_kwargs
 
-        self._resolution_will_start(future)
+            self._resolution_will_start(future)
 
-        self._enqueue_future(future)
+            self._enqueue_future(future)
 
-        if self._detach:
-            return self._detach_resolution(future)
+            if self._detach:
+                return self._detach_resolution(future)
 
-        while future.state != FutureState.RESOLVED:
-            for future_ in self._futures:
-                if future_.state == FutureState.CREATED:
-                    self._schedule_future_if_args_resolved(future_)
-                if future_.state == FutureState.RAN:
-                    self._resolve_nested_future(future_)
+            while future.state != FutureState.RESOLVED:
+                for future_ in self._futures:
+                    if future_.state == FutureState.CREATED:
+                        self._schedule_future_if_args_resolved(future_)
+                    if future_.state == FutureState.RAN:
+                        self._resolve_nested_future(future_)
 
-            self._wait_for_scheduled_run()
+                self._wait_for_scheduled_run()
 
-        self._resolution_did_succeed(future)
+            self._resolution_did_succeed(future)
 
-        if future.state != FutureState.RESOLVED:
-            raise RuntimeError("Unresolved Future after resolver call.")
+            if future.state != FutureState.RESOLVED:
+                raise RuntimeError("Unresolved Future after resolver call.")
 
-        return future.value
+            return future.value
+        except Exception as e:
+            due_to_calculator_error = False
+            if isinstance(e, CalculatorError):
+                due_to_calculator_error = True
+            self._resolution_did_fail(future, due_to_calculator_error)
+            if due_to_calculator_error and hasattr(e, "__cause__"):
+                # this will simplify the stack trace so the user sees less
+                # from Sematic's stack and more from the error from their code.
+                raise e.__cause__  # type: ignore
+            raise e
 
     def _detach_resolution(self, future: AbstractFuture) -> str:
         raise NotImplementedError()
@@ -124,7 +136,9 @@ class StateMachineResolver(Resolver, abc.ABC):
         """
         pass
 
-    def _resolution_did_fail(self, root_future: AbstractFuture) -> None:
+    def _resolution_did_fail(
+        self, root_future: AbstractFuture, due_to_calculator_error: bool
+    ) -> None:
         """
         Callback allowing resolvers to implement custom actions.
 
@@ -134,6 +148,8 @@ class StateMachineResolver(Resolver, abc.ABC):
         ----------
         root_future:
             This is the root future that is being resolved.
+        due_to_calculator_error:
+            Was the resolution's failure the result of the failure of a child run?
         """
         pass
 
@@ -218,10 +234,6 @@ class StateMachineResolver(Resolver, abc.ABC):
         in order to display in the UI.
         """
         self._fail_future_and_parents(future)
-        while future.parent_future is not None:
-            future = future.parent_future
-
-        self._resolution_did_fail(future)
         raise exception
 
     def _fail_future_and_parents(

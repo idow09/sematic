@@ -17,6 +17,7 @@ sematic_py_lib(
     name = "state_machine_resolver",
     srcs = ["state_machine_resolver.py"],
     deps = [
+        "//sematic:abstract_calculator",
         "//sematic:abstract_future",
         "//sematic:resolver",
     ],

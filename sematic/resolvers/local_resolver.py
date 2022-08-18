@@ -202,12 +202,16 @@ class LocalResolver(SilentResolver):
         self._update_resolution_status(root_future.id, ResolutionStatus.COMPLETE)
         self._notify_pipeline_update()
 
-    def _resolution_did_fail(self, root_future: AbstractFuture) -> None:
-        super()._resolution_did_fail(root_future)
-
-        # COMPLETE status is used for the resolution when the error came
-        # from inside user code, which is the case if we reach here.
-        self._update_resolution_status(root_future.id, ResolutionStatus.COMPLETE)
+    def _resolution_did_fail(
+        self, root_future: AbstractFuture, due_to_calculator_error: bool
+    ) -> None:
+        super()._resolution_did_fail(root_future, due_to_calculator_error)
+        resolution_status = (
+            ResolutionStatus.COMPLETE
+            if due_to_calculator_error
+            else ResolutionStatus.FAILED
+        )
+        self._update_resolution_status(root_future.id, resolution_status)
         self._notify_pipeline_update()
 
     def _update_resolution_status(self, root_id: str, status: ResolutionStatus):

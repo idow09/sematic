@@ -14,7 +14,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from sematic.api.app import sematic_api
 from sematic.api.endpoints.auth import authenticate
 from sematic.api.endpoints.request_parameters import jsonify_error
-from sematic.db.models.resolution import Resolution
+from sematic.db.models.resolution import InvalidResolution, Resolution
 from sematic.db.models.user import User
 from sematic.db.queries import get_resolution, get_run, save_resolution
 
@@ -80,14 +80,14 @@ def put_resolution_endpoint(user: Optional[User], resolution_id: str) -> flask.R
     except NoResultFound:
         existing_resolution = None
 
-    if existing_resolution is not None:
-        validation_error = existing_resolution.check_update(resolution)
-        if validation_error is not None:
-            return jsonify_error(validation_error, HTTPStatus.BAD_REQUEST)
-    else:
-        validation_error = resolution.check_new_resolution()
-        if validation_error is not None:
-            return jsonify_error(validation_error, HTTPStatus.BAD_REQUEST)
+    try:
+        if existing_resolution is not None:
+            existing_resolution.update_with(resolution)
+            resolution = existing_resolution
+        else:
+            resolution.validate_new()
+    except InvalidResolution as e:
+        return jsonify_error(str(e), HTTPStatus.BAD_REQUEST)
 
     save_resolution(resolution)
 
