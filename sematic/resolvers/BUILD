@@ -40,6 +40,7 @@ sematic_py_lib(
         "//sematic:abstract_future",
         "//sematic/db/models:artifact",
         "//sematic/db/models:edge",
+        "//sematic/db/models:resolution",
         "//sematic/db/models:run",
     ],
     pip_deps = [

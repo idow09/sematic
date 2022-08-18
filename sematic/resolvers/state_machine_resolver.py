@@ -29,12 +29,12 @@ class StateMachineResolver(Resolver, abc.ABC):
 
             future.resolved_kwargs = resolved_kwargs
 
-            self._resolution_will_start(future)
-
             self._enqueue_future(future)
 
             if self._detach:
                 return self._detach_resolution(future)
+
+            self._resolution_will_start(future)
 
             while future.state != FutureState.RESOLVED:
                 for future_ in self._futures:

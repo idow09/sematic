@@ -25,18 +25,21 @@ def pipeline() -> float:
     return add(1, 2)
 
 
+@mock.patch("sematic.resolvers.cloud_resolver._get_image")
 @mock.patch("sematic.resolvers.cloud_resolver._schedule_job")
 @mock.patch("kubernetes.config.load_kube_config")
 @mock_no_auth
 def test_simulate_cloud_exec(
     mock_load_kube_config: mock.MagicMock,
     mock_schedule_job: mock.MagicMock,
+    mock_get_image: mock.MagicMock,
     mock_requests,  # noqa: F811
     test_db,  # noqa: F811
     test_storage,  # noqa: F811
     valid_client_version,  # noqa: F811
 ):
     # On the user's machine
+    mock_get_image.return_value = "some_image"
 
     resolver = CloudResolver(detach=True)
 

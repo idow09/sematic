@@ -17,6 +17,7 @@ from sematic.abstract_future import AbstractFuture, FutureState
 from sematic.db.models.artifact import Artifact
 from sematic.db.models.edge import Edge
 from sematic.db.models.factories import get_artifact_value
+from sematic.db.models.resolution import Resolution, ResolutionKind, ResolutionStatus
 from sematic.db.models.run import Run
 from sematic.resolvers.local_resolver import LocalResolver, make_edge_key
 from sematic.resolvers.resource_requirements import ResourceRequirements
@@ -72,9 +73,30 @@ class CloudResolver(LocalResolver):
         self._artifacts = {artifact.id: artifact for artifact in artifacts}
         self._edges = {make_edge_key(edge): edge for edge in edges}
 
+    def _create_resolution(self, root_future_id, detached, is_running):
+        # create_resolution will be hit twice for a detached cloud run.
+        # Once when resolution is starting on the client, and once when
+        # it is starting on the worker. If the resolution already exists,
+        # no need to create a new one.
+        if is_running:
+            self._update_resolution_status(root_future_id, ResolutionStatus.RUNNING)
+            return
+        api_client.save_resolution(
+            Resolution(
+                root_id=root_future_id,
+                status=ResolutionStatus.SCHEDULED,
+                kind=ResolutionKind.KUBERNETES if detached else ResolutionKind.LOCAL,
+                docker_image_uri=_get_image(),
+                settings_env_vars={
+                    name: str(value) for name, value in get_all_user_settings().items()
+                },
+            )
+        )
+
     def _detach_resolution(self, future: AbstractFuture) -> str:
         run = self._populate_run_and_artifacts(future)
-
+        self._save_graph()
+        self._create_resolution(future.id, detached=True, is_running=False)
         run.root_id = future.id
 
         self._save_graph()

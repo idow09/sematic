@@ -110,6 +110,26 @@ class LocalResolver(SilentResolver):
 
         return run
 
+    def _resolution_will_start(self, future: AbstractFuture):
+        self._populate_run_and_artifacts(future)
+        self._save_graph()
+        self._create_resolution(future.id, detached=False, is_running=True)
+
+    def _create_resolution(self, root_future_id, detached, is_running):
+        api_client.save_resolution(
+            Resolution(
+                root_id=root_future_id,
+                status=ResolutionStatus.RUNNING
+                if is_running
+                else ResolutionStatus.SCHEDULED,
+                kind=ResolutionKind.LOCAL,
+                docker_image_uri=None,
+                settings_env_vars={
+                    name: str(value) for name, value in get_all_user_settings().items()
+                },
+            )
+        )
+
     def _future_will_schedule(self, future: AbstractFuture) -> None:
         super()._future_will_schedule(future)
 
@@ -121,19 +141,6 @@ class LocalResolver(SilentResolver):
 
         self._add_run(run)
         self._save_graph()
-        if run.parent_id is None:
-            api_client.save_resolution(
-                Resolution(
-                    root_id=run.id,
-                    status=ResolutionStatus.RUNNING,
-                    kind=ResolutionKind.LOCAL,
-                    docker_image_uri=None,
-                    settings_env_vars={
-                        name: str(value)
-                        for name, value in get_all_user_settings().items()
-                    },
-                )
-            )
 
     def _future_did_schedule(self, future: AbstractFuture) -> None:
         super()._future_did_schedule(future)
