@@ -155,6 +155,31 @@ def test_failure(test_db, mock_requests, valid_client_version):  # noqa: F811
         assert future.state == expected_states[future.calculator.__name__]
 
 
+@mock_no_auth
+def test_resolver_error(test_db, mock_requests, valid_client_version):  # noqa: F811
+    @func
+    def success():
+        return
+
+    @func
+    def pipeline():
+        return success()
+
+    resolver = LocalResolver()
+
+    def intentional_fail(*_, **__):
+        raise ValueError("some message")
+
+    # Random failure in resolution logic
+    resolver._wait_for_scheduled_run = intentional_fail
+
+    future = pipeline()
+    with pytest.raises(ValueError, match="some message"):
+        future.resolve(resolver)
+
+    assert get_resolution(future.id).status == ResolutionStatus.FAILED.value
+
+
 class DBStateMachineTestResolver(LocalResolver):
     def _future_will_schedule(self, future) -> None:
         super()._future_will_schedule(future)
