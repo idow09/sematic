@@ -9,6 +9,7 @@ from sematic.api.tests.fixtures import (  # noqa: F401
     test_client,
 )
 from sematic.calculator import func
+from sematic.db.models.resolution import ResolutionStatus
 from sematic.db.tests.fixtures import test_db  # noqa: F401
 from sematic.resolvers.cloud_resolver import CloudResolver
 from sematic.tests.fixtures import test_storage, valid_client_version  # noqa: F401
@@ -60,7 +61,12 @@ def test_simulate_cloud_exec(
     driver_resolver = CloudResolver(detach=False)
 
     driver_resolver.set_graph(runs=runs, artifacts=artifacts, edges=edges)
-
+    assert (
+        api_client.get_resolution(future.id).status == ResolutionStatus.SCHEDULED.value
+    )
     output = driver_resolver.resolve(future)
 
     assert output == 3
+    assert (
+        api_client.get_resolution(future.id).status == ResolutionStatus.COMPLETE.value
+    )

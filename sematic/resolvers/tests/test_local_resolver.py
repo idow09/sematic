@@ -14,7 +14,8 @@ from sematic.api.tests.fixtures import (  # noqa: F401
 from sematic.calculator import func
 from sematic.db.models.edge import Edge
 from sematic.db.models.factories import make_artifact
-from sematic.db.queries import get_root_graph
+from sematic.db.models.resolution import ResolutionStatus
+from sematic.db.queries import get_resolution, get_root_graph
 from sematic.db.tests.fixtures import pg_mock, test_db  # noqa: F401
 from sematic.resolvers.local_resolver import LocalResolver
 from sematic.tests.fixtures import valid_client_version  # noqa: F401
@@ -113,6 +114,7 @@ def test_pipeline(test_db, mock_requests, valid_client_version):  # noqa: F811
     assert future.state == FutureState.RESOLVED
 
     runs, artifacts, edges = get_root_graph(future.id)
+    assert get_resolution(future.id).status == ResolutionStatus.COMPLETE.value
 
     assert len(runs) == 6
     assert len(artifacts) == 5
@@ -138,9 +140,11 @@ def test_failure(test_db, mock_requests, valid_client_version):  # noqa: F811
 
     resolver = LocalResolver()
 
+    future = pipeline()
     with pytest.raises(CustomException, match="some message"):
-        pipeline().resolve(resolver)
+        future.resolve(resolver)
 
+    assert get_resolution(future.id).status == ResolutionStatus.COMPLETE.value
     expected_states = dict(
         pipeline=FutureState.NESTED_FAILED,
         success=FutureState.RESOLVED,
