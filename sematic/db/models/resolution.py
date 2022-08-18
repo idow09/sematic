@@ -53,7 +53,6 @@ class ResolutionStatus(Enum):
     ) -> bool:
         """Check whether it's valid to move from the from_status to the to_status
 
-
         Parameters
         ----------
         from_status:
