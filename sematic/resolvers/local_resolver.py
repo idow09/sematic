@@ -115,20 +115,25 @@ class LocalResolver(SilentResolver):
         self._save_graph()
         if not api_client.resolution_exists(future.id):
             self._create_resolution(future.id, detached=False)
-        self._update_resolution_status(future.id, ResolutionStatus.RUNNING)
+        self._update_resolution_status(ResolutionStatus.RUNNING)
+
+    def _get_resolution_image(self) -> Optional[str]:
+        return None
+
+    def _get_resolution_kind(self, detached) -> ResolutionKind:
+        return ResolutionKind.LOCAL
 
     def _create_resolution(self, root_future_id, detached):
-        api_client.save_resolution(
-            Resolution(
-                root_id=root_future_id,
-                status=ResolutionStatus.SCHEDULED,
-                kind=ResolutionKind.LOCAL,
-                docker_image_uri=None,
-                settings_env_vars={
-                    name: str(value) for name, value in get_all_user_settings().items()
-                },
-            )
+        resolution = Resolution(
+            root_id=root_future_id,
+            status=ResolutionStatus.SCHEDULED,
+            kind=self._get_resolution_kind(detached),
+            docker_image_uri=self._get_resolution_image(),
+            settings_env_vars={
+                name: str(value) for name, value in get_all_user_settings().items()
+            },
         )
+        api_client.save_resolution(resolution)
 
     def _future_will_schedule(self, future: AbstractFuture) -> None:
         super()._future_will_schedule(future)
@@ -204,25 +209,23 @@ class LocalResolver(SilentResolver):
         root_future = self._futures[0]
         api_client.notify_pipeline_update(self._runs[root_future.id].calculator_path)
 
-    def _resolution_did_succeed(self, root_future: AbstractFuture) -> None:
-        super()._resolution_did_succeed(root_future)
-        self._update_resolution_status(root_future.id, ResolutionStatus.COMPLETE)
+    def _resolution_did_succeed(self) -> None:
+        super()._resolution_did_succeed()
+        self._update_resolution_status(ResolutionStatus.COMPLETE)
         self._notify_pipeline_update()
 
-    def _resolution_did_fail(
-        self, root_future: AbstractFuture, due_to_calculator_error: bool
-    ) -> None:
-        super()._resolution_did_fail(root_future, due_to_calculator_error)
+    def _resolution_did_fail(self, due_to_calculator_error: bool) -> None:
+        super()._resolution_did_fail(due_to_calculator_error)
         resolution_status = (
             ResolutionStatus.COMPLETE
             if due_to_calculator_error
             else ResolutionStatus.FAILED
         )
-        self._update_resolution_status(root_future.id, resolution_status)
+        self._update_resolution_status(resolution_status)
         self._notify_pipeline_update()
 
-    def _update_resolution_status(self, root_id: str, status: ResolutionStatus):
-        resolution = api_client.get_resolution(root_id)
+    def _update_resolution_status(self, status: ResolutionStatus):
+        resolution = api_client.get_resolution(self._root_future.id)
         resolution.status = status
         api_client.save_resolution(resolution)
 

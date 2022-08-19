@@ -37,29 +37,6 @@ def get_resolution_endpoint(user: Optional[User], resolution_id: str) -> flask.R
     return flask.jsonify(payload)
 
 
-@sematic_api.route("/api/v1/resolutions/<resolution_id>/exists", methods=["GET"])
-@authenticate
-def resolution_exists_endpoint(
-    user: Optional[User], resolution_id: str
-) -> flask.Response:
-    # This endpoint can be useful when there is a legitimate reason to expect
-    # that the resolution might not exist, and the logic needs to take that
-    # into account. It is preferable to just seeing if you get a 404 on
-    # get_resolution_endpoint because it spoils the logs with lots of 404s
-    # and also complicates handling client-side.
-    exists = True
-    try:
-        get_resolution(resolution_id)
-    except NoResultFound:
-        exists = False
-
-    payload = dict(
-        content=exists,
-    )
-
-    return flask.jsonify(payload)
-
-
 @sematic_api.route("/api/v1/resolutions/<resolution_id>", methods=["PUT"])
 @authenticate
 def put_resolution_endpoint(user: Optional[User], resolution_id: str) -> flask.Response:
