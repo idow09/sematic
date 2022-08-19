@@ -104,13 +104,7 @@ class CloudResolver(LocalResolver):
 
     def _schedule_future(self, future: AbstractFuture) -> None:
         self._set_future_state(future, FutureState.SCHEDULED)
-        job_name = _make_job_name(future, JobType.worker)
-        _schedule_job(
-            future.id,
-            job_name,
-            resolve=False,
-            resource_requirements=future.props.resource_requirements,
-        )
+        api_client.schedule_run(future.id)
 
     def _wait_for_scheduled_run(self) -> None:
         run_id = self._wait_for_any_inline_run() or self._wait_for_any_remote_job()

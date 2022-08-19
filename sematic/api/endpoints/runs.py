@@ -26,7 +26,15 @@ from sematic.db.models.artifact import Artifact
 from sematic.db.models.edge import Edge
 from sematic.db.models.run import Run
 from sematic.db.models.user import User
-from sematic.db.queries import get_root_graph, get_run, get_run_graph, save_graph
+from sematic.db.queries import (
+    get_resolution,
+    get_root_graph,
+    get_run,
+    get_run_graph,
+    save_graph,
+    save_run,
+)
+from sematic.scheduling.job_scheduler import schedule_run
 
 
 @sematic_api.route("/api/v1/runs", methods=["GET"])
@@ -176,6 +184,25 @@ def get_run_endpoint(user: Optional[User], run_id: str) -> flask.Response:
         content=run.to_json_encodable(),
     )
 
+    return flask.jsonify(payload)
+
+
+@sematic_api.route("/api/v1/runs/<run_id>/schedule", methods=["POST"])
+@authenticate
+def schedule_run_endpoint(user: Optional[User], run_id: str) -> flask.Response:
+    try:
+        run = get_run(run_id)
+    except NoResultFound:
+        return jsonify_error(
+            "No runs with id {}".format(repr(run_id)), HTTPStatus.NOT_FOUND
+        )
+
+    resolution = get_resolution(run.root_id)
+    run = schedule_run(run, resolution)
+    save_run(run)
+    payload = dict(
+        content=run.to_json_encodable(),
+    )
     return flask.jsonify(payload)
 
 

@@ -139,6 +139,12 @@ def resolution_exists(root_id: str) -> bool:
     return response["content"]
 
 
+def schedule_run(run_id: str) -> Run:
+    """Ask the server to execute the calculator for the run."""
+    response = _post(f"/api/v1/runs/{run_id}/schedule")
+    return Run.from_json_encodable(response["content"])
+
+
 def notify_pipeline_update(calculator_path: str):
     _notify_event("pipeline", "update", {"calculator_path": calculator_path})
 
