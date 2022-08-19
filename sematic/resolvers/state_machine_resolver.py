@@ -19,6 +19,10 @@ class StateMachineResolver(Resolver, abc.ABC):
         self._futures: typing.List[AbstractFuture] = []
         self._detach = detach
 
+    @property
+    def _root_future(self) -> AbstractFuture:
+        return self._futures[0]
+
     def resolve(self, future: AbstractFuture) -> typing.Any:
         try:
             resolved_kwargs = self._get_resolved_kwargs(future)
@@ -45,7 +49,7 @@ class StateMachineResolver(Resolver, abc.ABC):
 
                 self._wait_for_scheduled_run()
 
-            self._resolution_did_succeed(future)
+            self._resolution_did_succeed()
 
             if future.state != FutureState.RESOLVED:
                 raise RuntimeError("Unresolved Future after resolver call.")
@@ -55,7 +59,7 @@ class StateMachineResolver(Resolver, abc.ABC):
             due_to_calculator_error = False
             if isinstance(e, CalculatorError):
                 due_to_calculator_error = True
-            self._resolution_did_fail(future, due_to_calculator_error)
+            self._resolution_did_fail(due_to_calculator_error)
             if due_to_calculator_error and hasattr(e, "__cause__"):
                 # this will simplify the stack trace so the user sees less
                 # from Sematic's stack and more from the error from their code.
@@ -123,22 +127,15 @@ class StateMachineResolver(Resolver, abc.ABC):
         """
         pass
 
-    def _resolution_did_succeed(self, root_future: AbstractFuture) -> None:
+    def _resolution_did_succeed(self) -> None:
         """
         Callback allowing resolvers to implement custom actions.
 
         This is called after all futures have succesfully resolved.
-
-        Parameters
-        ----------
-        root_future:
-            This is the root future that is being resolved.
         """
         pass
 
-    def _resolution_did_fail(
-        self, root_future: AbstractFuture, due_to_calculator_error: bool
-    ) -> None:
+    def _resolution_did_fail(self, due_to_calculator_error: bool) -> None:
         """
         Callback allowing resolvers to implement custom actions.
 
@@ -146,8 +143,6 @@ class StateMachineResolver(Resolver, abc.ABC):
 
         Parameters
         ----------
-        root_future:
-            This is the root future that is being resolved.
         due_to_calculator_error:
             Was the resolution's failure the result of the failure of a child run?
         """

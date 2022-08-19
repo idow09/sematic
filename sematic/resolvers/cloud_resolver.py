@@ -17,7 +17,7 @@ from sematic.abstract_future import AbstractFuture, FutureState
 from sematic.db.models.artifact import Artifact
 from sematic.db.models.edge import Edge
 from sematic.db.models.factories import get_artifact_value
-from sematic.db.models.resolution import Resolution, ResolutionKind, ResolutionStatus
+from sematic.db.models.resolution import ResolutionKind
 from sematic.db.models.run import Run
 from sematic.resolvers.local_resolver import LocalResolver, make_edge_key
 from sematic.resolvers.resource_requirements import ResourceRequirements
@@ -73,26 +73,17 @@ class CloudResolver(LocalResolver):
         self._artifacts = {artifact.id: artifact for artifact in artifacts}
         self._edges = {make_edge_key(edge): edge for edge in edges}
 
-    def _create_resolution(self, root_future_id, detached):
-        api_client.save_resolution(
-            Resolution(
-                root_id=root_future_id,
-                status=ResolutionStatus.SCHEDULED,
-                kind=ResolutionKind.KUBERNETES if detached else ResolutionKind.LOCAL,
-                docker_image_uri=_get_image(),
-                settings_env_vars={
-                    name: str(value) for name, value in get_all_user_settings().items()
-                },
-            )
-        )
+    def _get_resolution_image(self) -> Optional[str]:
+        return _get_image()
+
+    def _get_resolution_kind(self, detached) -> ResolutionKind:
+        return ResolutionKind.KUBERNETES if detached else ResolutionKind.LOCAL
 
     def _detach_resolution(self, future: AbstractFuture) -> str:
         run = self._populate_run_and_artifacts(future)
         self._save_graph()
         self._create_resolution(future.id, detached=True)
         run.root_id = future.id
-
-        self._save_graph()
 
         api_client.notify_pipeline_update(run.calculator_path)
 
