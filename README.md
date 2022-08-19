@@ -8,18 +8,18 @@
 ![PyPI](https://img.shields.io/pypi/v/sematic?style=for-the-badge)
 [![CircleCI](https://img.shields.io/circleci/build/github/sematic-ai/sematic/main?label=CircleCI&style=for-the-badge&token=c8e0115ddccadc17b98ab293b32cad27026efb25)](https://app.circleci.com/pipelines/github/sematic-ai/sematic?branch=main&filter=all)
 ![PyPI - License](https://img.shields.io/pypi/l/sematic?style=for-the-badge)
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue?style=for-the-badge&logo=none)](https://python.org)
+[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue?style=for-the-badge&logo=none)](https://python.org)
 ![Discord](https://img.shields.io/discord/983789877927747714?label=DISCORD&style=for-the-badge)
 [![Made By Sematic](https://img.shields.io/badge/Made_by-Sematic_🦊-E19632?style=for-the-badge&logo=none)](https://sematic.dev)
 ![PyPI - Downloads](https://img.shields.io/pypi/dm/sematic?style=for-the-badge)
 
 ## Hi 👋
 
-Sematic is an open-source development toolkit to help Data Scientists and
-Machine Learning (ML) Engineers prototype and productionize ML pipelines in days
-not weeks.
+[Sematic](https://sematic.dev) is an open-source development toolkit to help
+Data Scientists and Machine Learning (ML) Engineers prototype and productionize
+ML pipelines in days not weeks.
 
-Sematic is based on experience working at leading tech companies.
+Sematic is based on experience building ML infrastructure at leading tech companies.
 
 
 Find our docs at [docs.sematic.dev](https://docs.sematic.dev), and join us on
@@ -34,7 +34,7 @@ Sematic helps you
 * [soon] Clone/re-run your pipelines with different inputs/configs
 * [soon] Schedule your pipelines to keep your models fresh and relevant
 
-Sematic is an alternative to other ML pipeline tools, such as KubeFlow Pipelines.
+Sematic is an alternative to tools such as KubeFlow Pipelines.
 
 
 ## Installation
