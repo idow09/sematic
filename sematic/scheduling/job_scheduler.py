@@ -23,7 +23,7 @@ def schedule_run(run: Run, resolution: Resolution) -> Run:
 
 
 def _validate_scheduleable(run: Run, resolution: Resolution):
-    if run.future_state != FutureState.CREATED:
+    if run.future_state != FutureState.CREATED.value:
         raise RunStateNotSchedulable(
             f"The run {run.id} was in the state {run.future_state}, and could "
             f"not be scheduled. Runs can only be scheduled if they are in the "
@@ -35,7 +35,7 @@ def _validate_scheduleable(run: Run, resolution: Resolution):
                 f"The run {run.id} already had an active external job "
                 f"{job.external_job_id} and thus could not be scheduled."
             )
-    if resolution.status != ResolutionStatus.RUNNING:
+    if resolution.status != ResolutionStatus.RUNNING.value:
         raise RunStateNotSchedulable(
             f"The run {run.id} was not schedulable because there "
             f"is no active resolution for it."

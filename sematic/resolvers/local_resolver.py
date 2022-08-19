@@ -139,10 +139,7 @@ class LocalResolver(SilentResolver):
         super()._future_will_schedule(future)
 
         run = self._populate_run_and_artifacts(future)
-
-        run.future_state = FutureState.SCHEDULED
         run.root_id = self._futures[0].id
-        run.started_at = datetime.datetime.utcnow()
 
         self._add_run(run)
         self._save_graph()

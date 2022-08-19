@@ -94,8 +94,8 @@ class CloudResolver(LocalResolver):
         return run.id
 
     def _schedule_future(self, future: AbstractFuture) -> None:
-        self._set_future_state(future, FutureState.SCHEDULED)
-        api_client.schedule_run(future.id)
+        run = api_client.schedule_run(future.id)
+        self._set_future_state(future, run.future_state)
 
     def _wait_for_scheduled_run(self) -> None:
         run_id = self._wait_for_any_inline_run() or self._wait_for_any_remote_job()

@@ -139,7 +139,7 @@ def resolution_exists(root_id: str) -> bool:
 
 def schedule_run(run_id: str) -> Run:
     """Ask the server to execute the calculator for the run."""
-    response = _post(f"/api/v1/runs/{run_id}/schedule")
+    response = _post(f"/runs/{run_id}/schedule", json_payload={})
     return Run.from_json_encodable(response["content"])
 
 

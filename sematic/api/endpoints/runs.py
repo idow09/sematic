@@ -4,6 +4,7 @@ Module keeping all /api/v*/runs/* API endpoints.
 
 # Standard Library
 import base64
+import datetime
 from http import HTTPStatus
 from typing import Dict, List, Optional
 from urllib.parse import urlencode, urlsplit, urlunsplit
@@ -199,6 +200,7 @@ def schedule_run_endpoint(user: Optional[User], run_id: str) -> flask.Response:
 
     resolution = get_resolution(run.root_id)
     run = schedule_run(run, resolution)
+    run.started_at = datetime.datetime.utcnow()
     save_run(run)
     payload = dict(
         content=run.to_json_encodable(),

@@ -99,6 +99,8 @@ class StateMachineResolver(Resolver, abc.ABC):
         Sets state on future and call corresponding callback.
         """
         future.state = state
+        if state == FutureState.SCHEDULED:
+            raise ValueError("Here!")
 
         CALLBACKS = {
             FutureState.SCHEDULED: self._future_did_schedule,
