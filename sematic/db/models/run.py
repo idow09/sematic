@@ -2,7 +2,7 @@
 import datetime
 import json
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 # Third party
 from sqlalchemy import Column, types
@@ -15,6 +15,11 @@ from sematic.db.models.json_encodable_mixin import (
     ENUM_KEY,
     JSON_KEY,
     JSONEncodableMixin,
+)
+from sematic.resolvers.resource_requirements import ResourceRequirements
+from sematic.types.serialization import (
+    value_from_json_encodable,
+    value_to_json_encodable,
 )
 
 
@@ -64,7 +69,8 @@ class Run(Base, JSONEncodableMixin):
         returns a :class:`sematic.Future`.
     failed_at : Optional[datetime]
         Time at which the run has failed.
-
+    resource_requirements_json_encodable : Optional[Dict[str, Any]]
+        The compute resources requested for the execution.
     """
 
     __tablename__ = "runs"
@@ -99,6 +105,9 @@ class Run(Base, JSONEncodableMixin):
     ended_at: Optional[datetime.datetime] = Column(types.DateTime(), nullable=True)
     resolved_at: Optional[datetime.datetime] = Column(types.DateTime(), nullable=True)
     failed_at: Optional[datetime.datetime] = Column(types.DateTime(), nullable=True)
+    resource_requirements_json_encodable: Optional[Dict[str, Any]] = Column(
+        types.JSON(), nullable=True, info={JSON_KEY: True}
+    )
 
     @validates("future_state")
     def validate_future_state(self, key, value) -> str:
@@ -126,3 +135,19 @@ class Run(Base, JSONEncodableMixin):
             value = re.sub(r"\n\s{4}", "\n", value.strip())
 
         return value
+
+    @property
+    def resource_requirements(self) -> Optional[ResourceRequirements]:
+        if self.resource_requirements_json_encodable is None:
+            return None
+        return value_from_json_encodable(
+            self.resource_requirements_json_encodable, ResourceRequirements
+        )
+
+    @resource_requirements.setter
+    def resource_requirements(self, value: Optional[ResourceRequirements]) -> None:
+        if value is None:
+            self.resource_requirements_json_encodable = None
+        self.resource_requirements_json_encodable = value_to_json_encodable(
+            value, ResourceRequirements
+        )
