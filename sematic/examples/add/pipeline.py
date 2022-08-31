@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 # Sematic
 import sematic
+from sematic.resolvers.resource_requirements import KubernetesResourceRequirements
 
 
 @dataclass
@@ -43,7 +44,12 @@ def add3(a: float, b: float, c: float) -> float:
     return add(add(a, b), c)
 
 
-@sematic.func
+@sematic.func(
+    resource_requirements=sematic.ResourceRequirements(
+        kubernetes=KubernetesResourceRequirements(node_selector={"foo": "bar"})
+    )
+)
+# @sematic.func
 def pipeline(a: float, b: float, c: float) -> float:
     """
     ## This is the docstring
