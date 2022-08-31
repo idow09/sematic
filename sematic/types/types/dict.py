@@ -55,29 +55,32 @@ def _dict_to_json_encodable(value: Dict, type_: Type) -> List[Tuple[Any, Any]]:
     # Sorting keys for determinism
     sorted_keys = sorted(value.keys())
 
-    return [
-        (
-            value_to_json_encodable(key, key_type),
-            value_to_json_encodable(value[key], element_type),
-        )
-        for key in sorted_keys
-    ]
+    return {
+        "items": [
+            (
+                value_to_json_encodable(key, key_type),
+                value_to_json_encodable(value[key], element_type),
+            )
+            for key in sorted_keys
+        ]
+    }
 
 
 @register_from_json_encodable(dict)
 def _dict_from_json_encodable(
-    value: List[Tuple[Any, Any]], type_: Type
+    value: Dict[str, List[Tuple[Any, Any]]], type_: Type
 ) -> Dict[Any, Any]:
     """
     Dict deserialization
     """
     key_type, element_type = get_args(type_)
+    items = value["items"]
 
     return {
         value_from_json_encodable(key, key_type): value_from_json_encodable(
             element, element_type
         )
-        for key, element in value
+        for key, element in items
     }
 
 
