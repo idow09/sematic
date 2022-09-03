@@ -14,6 +14,7 @@ import kubernetes
 import sematic.api_client as api_client
 import sematic.storage as storage
 from sematic.abstract_future import AbstractFuture, FutureState
+from sematic.config import ON_WORKER_ENV_VAR
 from sematic.db.models.artifact import Artifact
 from sematic.db.models.edge import Edge
 from sematic.db.models.factories import get_artifact_value
@@ -43,7 +44,7 @@ class CloudResolver(LocalResolver):
         will return when the entire pipeline has completed.
     """
 
-    def __init__(self, detach: bool = True):
+    def __init__(self, detach: bool = True, is_running_remotely: bool = False):
         super().__init__(detach=detach)
 
         try:
@@ -58,6 +59,7 @@ class CloudResolver(LocalResolver):
         self._store_artifacts = True
 
         self._output_artifacts_by_run_id: Dict[str, Artifact] = {}
+        self._is_running_remotely = is_running_remotely
 
     def set_graph(self, runs: List[Run], artifacts: List[Artifact], edges: List[Edge]):
         """
@@ -78,6 +80,18 @@ class CloudResolver(LocalResolver):
 
     def _get_resolution_kind(self, detached) -> ResolutionKind:
         return ResolutionKind.KUBERNETES if detached else ResolutionKind.LOCAL
+
+    def _create_resolution(self, root_future_id, detached):
+        if self._is_running_remotely:
+            # resolution should have been created prior to the resolver
+            # actually starting its remote resolution.
+            return
+        super()._create_resolution(root_future_id, detached)
+
+    def _update_run_and_future_pre_scheduling(self, run: Run, future: AbstractFuture):
+        # For the cloud resolver, the server will update the relevant
+        # run fields when it gets scheduled by the server.
+        pass
 
     def _detach_resolution(self, future: AbstractFuture) -> str:
         run = self._populate_run_and_artifacts(future)
@@ -235,9 +249,12 @@ def _schedule_job(
     image = _get_image()
 
     node_selector = {}
+    resource_requests = {}
     if resource_requirements is not None:
         node_selector = resource_requirements.kubernetes.node_selector
+        resource_requests = resource_requirements.kubernetes.requests
         logger.debug("kubernetes node_selector %s", node_selector)
+        logger.debug("kubernetes resource requests %s", resource_requests)
 
     job = kubernetes.client.V1Job(  # type: ignore
         api_version="batch/v1",
@@ -256,7 +273,11 @@ def _schedule_job(
                                 kubernetes.client.V1EnvVar(  # type: ignore
                                     name=_CONTAINER_IMAGE_ENV_VAR,
                                     value=image,
-                                )
+                                ),
+                                kubernetes.client.V1EnvVar(  # type: ignore
+                                    name=ON_WORKER_ENV_VAR,
+                                    value="1",
+                                ),
                             ]
                             + [
                                 kubernetes.client.V1EnvVar(  # type: ignore
@@ -266,7 +287,12 @@ def _schedule_job(
                                 for name, value in get_all_user_settings().items()
                             ],
                             volume_mounts=[],
-                            resources=None,
+                            resources=(
+                                kubernetes.client.V1ResourceRequirements(  # type: ignore
+                                    limits=resource_requests,
+                                    requests=resource_requests,
+                                )
+                            ),
                         )
                     ],
                     volumes=[],

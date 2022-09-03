@@ -132,11 +132,6 @@ def get_resolution(root_id: str) -> Resolution:
     return Resolution.from_json_encodable(response["content"])
 
 
-def resolution_exists(root_id: str) -> bool:
-    """Determine whether a resolution with the given id exists"""
-    return _exists(f"/resolutions/{root_id}")
-
-
 def schedule_run(run_id: str) -> Run:
     """Ask the server to execute the calculator for the run."""
     response = _post(f"/runs/{run_id}/schedule", json_payload={})

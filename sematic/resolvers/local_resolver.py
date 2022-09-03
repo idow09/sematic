@@ -1,12 +1,12 @@
 # Standard Library
 import datetime
 import logging
-import traceback
 import uuid
 from typing import Dict, List, Optional, Tuple, Union
 
 # Sematic
 import sematic.api_client as api_client
+from sematic.abstract_calculator import CalculatorError
 from sematic.abstract_future import AbstractFuture, FutureState
 from sematic.config import get_config  # noqa: F401
 from sematic.db.models.artifact import Artifact
@@ -16,6 +16,7 @@ from sematic.db.models.resolution import Resolution, ResolutionKind, ResolutionS
 from sematic.db.models.run import Run
 from sematic.resolvers.silent_resolver import SilentResolver
 from sematic.user_settings import get_all_user_settings
+from sematic.utils.exceptions import format_exception_for_run
 
 logger = logging.getLogger(__name__)
 
@@ -110,11 +111,10 @@ class LocalResolver(SilentResolver):
 
         return run
 
-    def _resolution_will_start(self, future: AbstractFuture):
-        self._populate_run_and_artifacts(future)
+    def _resolution_will_start(self):
+        self._populate_run_and_artifacts(self._root_future)
         self._save_graph()
-        if not api_client.resolution_exists(future.id):
-            self._create_resolution(future.id, detached=False)
+        self._create_resolution(self._root_future.id, detached=False)
         self._update_resolution_status(ResolutionStatus.RUNNING)
 
     def _get_resolution_image(self) -> Optional[str]:
@@ -139,10 +139,17 @@ class LocalResolver(SilentResolver):
         super()._future_will_schedule(future)
 
         run = self._populate_run_and_artifacts(future)
+        self._update_run_and_future_pre_scheduling(run, future)
         run.root_id = self._futures[0].id
 
         self._add_run(run)
         self._save_graph()
+
+    def _update_run_and_future_pre_scheduling(self, run: Run, future: AbstractFuture):
+        """Perform any updates to run before saving it to the DB pre-scheduling"""
+        future.state = FutureState.SCHEDULED
+        run.future_state = FutureState.SCHEDULED
+        run.started_at = datetime.datetime.utcnow()
 
     def _future_did_schedule(self, future: AbstractFuture) -> None:
         super()._future_did_schedule(future)
@@ -196,7 +203,7 @@ class LocalResolver(SilentResolver):
 
         # We do not propagate exceptions to parent runs
         if failed_future.state == FutureState.FAILED:
-            run.exception = traceback.format_exc()
+            run.exception = format_exception_for_run()
 
         run.failed_at = datetime.datetime.utcnow()
         self._add_run(run)
@@ -211,15 +218,30 @@ class LocalResolver(SilentResolver):
         self._update_resolution_status(ResolutionStatus.COMPLETE)
         self._notify_pipeline_update()
 
-    def _resolution_did_fail(self, due_to_calculator_error: bool) -> None:
-        super()._resolution_did_fail(due_to_calculator_error)
-        resolution_status = (
-            ResolutionStatus.COMPLETE
-            if due_to_calculator_error
-            else ResolutionStatus.FAILED
-        )
+    def _resolution_did_fail(self, error: Exception) -> None:
+        super()._resolution_did_fail(error)
+        if isinstance(error, CalculatorError):
+            reason = "Marked as failed because another run in the graph failed."
+            resolution_status = ResolutionStatus.COMPLETE
+        else:
+            reason = (
+                "Marked as failed because of an internal error resolving the graph."
+            )
+            resolution_status = ResolutionStatus.FAILED
+
+        self._move_runs_to_terminal_state(reason)
         self._update_resolution_status(resolution_status)
         self._notify_pipeline_update()
+
+    def _move_runs_to_terminal_state(self, reason):
+        for run_id, run in self._runs.items():
+            state = FutureState.as_object(run.future_state)
+            if state.is_terminal():
+                continue
+            run.future_state = FutureState.FAILED
+            run.exception = reason
+            self._buffer_runs[run_id] = run
+        self._save_graph()
 
     def _update_resolution_status(self, status: ResolutionStatus):
         resolution = api_client.get_resolution(self._root_future.id)

@@ -8,7 +8,7 @@ from kubernetes.client.exceptions import ApiException
 from urllib3.exceptions import ConnectionError
 
 # Sematic
-from sematic.config import SettingsVar, get_user_settings
+from sematic.config import ON_WORKER_ENV_VAR, SettingsVar, get_user_settings
 from sematic.docker_images import CONTAINER_IMAGE_ENV_VAR
 from sematic.resolvers.resource_requirements import ResourceRequirements
 from sematic.scheduling.external_job import KUBERNETES_JOB_KIND, ExternalJob, JobType
@@ -123,9 +123,12 @@ def _schedule_kubernetes_job(
     load_kube_config()
     args = args if args is not None else []
     node_selector = {}
+    resource_requests = {}
     if resource_requirements is not None:
         node_selector = resource_requirements.kubernetes.node_selector
+        resource_requests = resource_requirements.kubernetes.requests
         logger.debug("kubernetes node_selector %s", node_selector)
+        logger.debug("kubernetes resource requests %s", resource_requests)
 
     job = kubernetes.client.V1Job(  # type: ignore
         api_version="batch/v1",
@@ -144,17 +147,26 @@ def _schedule_kubernetes_job(
                                 kubernetes.client.V1EnvVar(  # type: ignore
                                     name=CONTAINER_IMAGE_ENV_VAR,
                                     value=image,
-                                )
+                                ),
+                                kubernetes.client.V1EnvVar(  # type: ignore
+                                    name=ON_WORKER_ENV_VAR,
+                                    value="1",
+                                ),
                             ]
                             + [
                                 kubernetes.client.V1EnvVar(  # type: ignore
                                     name=name,
-                                    value=value,
+                                    value=str(value),
                                 )
                                 for name, value in environment_vars.items()
                             ],
                             volume_mounts=[],
-                            resources=None,
+                            resources=(
+                                kubernetes.client.V1ResourceRequirements(  # type: ignore
+                                    limits=resource_requests,
+                                    requests=resource_requests,
+                                )
+                            ),
                         )
                     ],
                     volumes=[],
