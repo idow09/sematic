@@ -22,8 +22,8 @@ sematic_py_lib(
     srcs = ["kubernetes.py"],
     deps = [
         "//sematic/utils:retry",
-        "//sematic:docker_images",
         "//sematic:config",
+        "//sematic:container_images",
         "//sematic/scheduling:external_job",
         "//sematic/resolvers:resource_requirements"
     ],

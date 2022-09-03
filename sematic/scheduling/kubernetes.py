@@ -9,7 +9,7 @@ from urllib3.exceptions import ConnectionError
 
 # Sematic
 from sematic.config import ON_WORKER_ENV_VAR, SettingsVar, get_user_settings
-from sematic.docker_images import CONTAINER_IMAGE_ENV_VAR
+from sematic.container_images import CONTAINER_IMAGE_ENV_VAR
 from sematic.resolvers.resource_requirements import ResourceRequirements
 from sematic.scheduling.external_job import KUBERNETES_JOB_KIND, ExternalJob, JobType
 from sematic.utils.retry import retry
