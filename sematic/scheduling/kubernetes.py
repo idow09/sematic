@@ -206,7 +206,7 @@ def schedule_run_job(
         still_exists=True,
     )
     logger.info("Scheduling job %s", external_job.kubernetes_job_name)
-    args = ["--run_id", run_id, "--resolve"]
+    args = ["--run_id", run_id]
 
     _schedule_kubernetes_job(
         name=external_job.kubernetes_job_name,

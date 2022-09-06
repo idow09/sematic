@@ -16,6 +16,15 @@ class RunStateNotSchedulable(Exception):
 
 
 def schedule_run(run: Run, resolution: Resolution) -> Run:
+    """Start a job for the run on external compute.
+
+    Parameters
+    ----------
+    run:
+        The run to schedule
+    resolution:
+        The resolution associated with the run
+    """
     run.external_jobs = _refresh_external_jobs(run.external_jobs)
     _validate_scheduleable(run, resolution)
     run.external_jobs.append(_schedule_job(run, resolution))
