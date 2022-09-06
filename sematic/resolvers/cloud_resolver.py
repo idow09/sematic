@@ -196,6 +196,7 @@ class CloudResolver(LocalResolver):
                 kubernetes.client.BatchV1Api().list_namespaced_job,  # type: ignore
                 namespace=get_user_settings(SettingsVar.KUBERNETES_NAMESPACE),
                 label_selector="job-name in ({0})".format(", ".join(job_names)),
+                timeout_seconds=60,
             ):
                 job = event["object"]
 
